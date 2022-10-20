@@ -11,15 +11,15 @@ contract PolygonERC721 is Initializable, ERC721URIStorageUpgradeable, OwnableUpg
     CountersUpgradeable.Counter private _tokenIds;
 
     function initialize() initializer public {
-        __ERC721_init("", "");
+        __ERC721_init("DDAKZI", "DKZ");
         __UUPSUpgradeable_init();
         __Ownable_init();
     }
 
     function mintNFT(address recipient, string memory tokenURI) public {
-        uint256 newItemId = _tokenIds.current();
-        _mint(recipient, newItemId);
-        _setTokenURI(newItemId, tokenURI);
+        uint256 id = _tokenIds.current();
+        _mint(recipient, id);
+        _setTokenURI(id, tokenURI);
         _tokenIds.increment();
     }
     
