@@ -2,7 +2,7 @@ import { ethers, upgrades } from "hardhat";
 import { writeFileSync } from 'fs'
 
 async function main() {
-  const contractFactory = await ethers.getContractFactory("Ddakzi");
+  const contractFactory = await ethers.getContractFactory("FDT");
   const contract = await upgrades.deployProxy(contractFactory, {kind: "uups"});
 
   const txHash = contract.deployTransaction.hash;
