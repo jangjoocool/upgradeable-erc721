@@ -24,14 +24,48 @@ contract FDT is Initializable, ERC721URIStorageUpgradeable, IERC5192, OwnableUpg
     mapping(uint256 => User) private _user;
     mapping(string => uint256) private _voting;
     mapping(string => uint256) private _nextVoting;
+    uint64 private currentYear;
 
     function initialize() initializer public {
-        __ERC721_init("Figlio De Taejon", "FDT");
+        __ERC721_init("testing", "TEST");
         __UUPSUpgradeable_init();
         __Ownable_init();
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    /*
+        TEST
+     */
+    function mintForTest(address recipient) public onlyOwner {
+        uint256 maxCount = 100;
+        for(uint256 i = 0; i < maxCount;i++) {
+            uint256 id = _tokenIds.current();
+            _mint(recipient, id);
+            _tokenIds.increment();
+            lock(id);
+            User memory userInfo = User(
+                "test-ID",
+                recipient,
+                "test-class",
+                "test-name"
+            );
+            setUser(id, userInfo);
+        }
+        // while(_tokenIds.current() > maxCount) {
+        //     uint256 id = _tokenIds.current();
+        //     _mint(recipient, id);
+        //     _tokenIds.increment();
+        //     lock(id);
+        //     User memory userInfo = User(
+        //         "test-ID",
+        //         recipient,
+        //         "test-class",
+        //         "test-name"
+        //     );
+        //     setUser(id, userInfo);
+        // }
+    }
 
     /*
         Mint & Burn
@@ -55,19 +89,23 @@ contract FDT is Initializable, ERC721URIStorageUpgradeable, IERC5192, OwnableUpg
     /*
         User
     */
-    function setUser(uint256 tokenId, User calldata userInfo) public onlyOwner {
-        require(address(0) == _user[tokenId].userAddress, "User already existed");
+    function setUser(uint256 tokenId, User memory userInfo) public onlyOwner {
+        // require(address(0) == _user[tokenId].userAddress, "User already existed");
         _user[tokenId] = userInfo;
         addVoting(tokenId);
     }
 
-    function classAdvancement(uint256 tokenId, string calldata class) public onlyOwner {
-        _user[tokenId].class = class;
+    function classAdvancement(uint256 tokenId, string calldata class_) public onlyOwner {
+        _user[tokenId].class = class_;
     }
 
     /*
         Voting
      */
+    function votingOf(uint256 tokenId) public view returns(uint256) {
+        return _voting[_user[tokenId].id];
+    }
+
     function addVoting(uint256 tokenId) internal onlyOwner {
         string memory userId = _user[tokenId].id;
         _voting[userId] = _voting[userId].add(1);
@@ -81,8 +119,10 @@ contract FDT is Initializable, ERC721URIStorageUpgradeable, IERC5192, OwnableUpg
     function changeToNextVoting() external onlyOwner {
         uint256 currentTokenId = _tokenIds.current();
         for(uint256 i = 0; i < currentTokenId ;i++) {
-            string memory userId = _user[i].id;
-            _voting[userId] = _nextVoting[userId];
+            if(ownerOf(i) != address(0)) {
+                string memory userId = _user[i].id;
+                _voting[userId] = _nextVoting[userId];
+            }
         }
     }
     
