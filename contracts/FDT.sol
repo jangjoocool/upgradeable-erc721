@@ -13,68 +13,69 @@ contract FDT is Initializable, ERC721URIStorageUpgradeable, IERC5192, OwnableUpg
     using CountersUpgradeable for CountersUpgradeable.Counter;
 
     struct User {
-        string id;
-        address userAddress;
+        bytes32 id;
         string class;
         string name;
     }
 
     CountersUpgradeable.Counter private _tokenIds;
-    mapping(uint256 => bool) private _lock;
+    mapping(bytes32 => bool) private _whiteList;
     mapping(uint256 => User) private _user;
-    mapping(string => uint256) private _voting;
-    mapping(string => uint256) private _nextVoting;
-    uint64 private currentYear;
+    mapping(uint256 => bool) private _lock;
+    mapping(bytes32 => address) private _registedUser;
+    uint256 private _generateCodeCount;
+    string private _neighborhoodURI;
 
     function initialize() initializer public {
-        __ERC721_init("testing", "TEST");
+        __ERC721_init("Figlio De Taejon", "FDT");
         __UUPSUpgradeable_init();
         __Ownable_init();
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    /*
-        TEST
+    /**
+        whiteList
      */
-    function mintForTest(address recipient) public onlyOwner {
-        uint256 maxCount = 100;
-        for(uint256 i = 0; i < maxCount;i++) {
-            uint256 id = _tokenIds.current();
-            _mint(recipient, id);
-            _tokenIds.increment();
-            lock(id);
-            User memory userInfo = User(
-                "test-ID",
-                recipient,
-                "test-class",
-                "test-name"
-            );
-            setUser(id, userInfo);
+    function generateWhiteListCode(uint256 count) external onlyOwner returns(bytes32[] memory) {
+        bytes32[] memory result = new bytes32[](count);
+        for(uint256 i = 0; i < count; i++) {
+            bytes32 whiteListCode = keccak256(abi.encodePacked(block.timestamp, i, _generateCodeCount, "Figlio De Taejon"));
+            _whiteList[whiteListCode] = true;
+            result[i] = whiteListCode;
+            _generateCodeCount++;
         }
-        // while(_tokenIds.current() > maxCount) {
-        //     uint256 id = _tokenIds.current();
-        //     _mint(recipient, id);
-        //     _tokenIds.increment();
-        //     lock(id);
-        //     User memory userInfo = User(
-        //         "test-ID",
-        //         recipient,
-        //         "test-class",
-        //         "test-name"
-        //     );
-        //     setUser(id, userInfo);
-        // }
+        return result;
+    }
+
+    /**
+        URI
+     */
+    function setNeighborhoodURI(string memory uri) external onlyOwner {
+        _neighborhoodURI = uri;
+    }
+
+    function neighborhoodURI() internal view returns(string memory) {
+        return _neighborhoodURI;
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns(string memory) {
+        if(keccak256(abi.encodePacked(_user[tokenId].class)) == keccak256(abi.encodePacked("Brotherhood"))) {
+            super.tokenURI(tokenId);
+        }
+        return neighborhoodURI();
     }
 
     /*
         Mint & Burn
      */
-    function mintWithLock(address recipient, string calldata tokenURI, User calldata userInfo) public {
+    function mintForNeighborhood(address recipient, bytes32 userId, string calldata userName) public {
+        require(_whiteList[userId], "Caller is Not Whitelist");
+        require(_registedUser[userId] == address(0), "Caller is already registed");
+
         uint256 id = _tokenIds.current();
-        setUser(id, userInfo);
         _mint(recipient, id);
-        _setTokenURI(id, tokenURI);
+        _user[id] = User(userId, "Neighborhood", userName);
         lock(id);
         _tokenIds.increment();
     }
@@ -89,43 +90,14 @@ contract FDT is Initializable, ERC721URIStorageUpgradeable, IERC5192, OwnableUpg
     /*
         User
     */
-    function setUser(uint256 tokenId, User memory userInfo) public onlyOwner {
-        // require(address(0) == _user[tokenId].userAddress, "User already existed");
+    function setUser(uint256 tokenId, User memory userInfo) internal onlyOwner {
         _user[tokenId] = userInfo;
-        addVoting(tokenId);
     }
 
-    function classAdvancement(uint256 tokenId, string calldata class_) public onlyOwner {
+    function classAdvancement(uint256 tokenId, string calldata class_) internal onlyOwner {
         _user[tokenId].class = class_;
     }
 
-    /*
-        Voting
-     */
-    function votingOf(uint256 tokenId) public view returns(uint256) {
-        return _voting[_user[tokenId].id];
-    }
-
-    function addVoting(uint256 tokenId) internal onlyOwner {
-        string memory userId = _user[tokenId].id;
-        _voting[userId] = _voting[userId].add(1);
-    }
-
-    function addNextVoting(uint256 tokenId) internal onlyOwner {
-        string memory userId = _user[tokenId].id;
-        _nextVoting[userId] = _nextVoting[userId].add(1);
-    }
-
-    function changeToNextVoting() external onlyOwner {
-        uint256 currentTokenId = _tokenIds.current();
-        for(uint256 i = 0; i < currentTokenId ;i++) {
-            if(ownerOf(i) != address(0)) {
-                string memory userId = _user[i].id;
-                _voting[userId] = _nextVoting[userId];
-            }
-        }
-    }
-    
     /*
         Lock
      */
